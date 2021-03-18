@@ -16,6 +16,9 @@ jobs:
         with:
           toolchain: stable
       - run: cargo build --release --all-features
+      - name: ZIP artifact
+        shell: pwsh
+        run: Compress-Archive -Path target/release/curator.exe -DestinationPath idf-curator.zip
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -33,7 +36,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: target/release/curator.exe
-          asset_name: curator.exe
-          asset_content_type: application/octet-stream
+          asset_path: idf-curator.zip
+          asset_name: idf-curator.zip
+          asset_content_type: application/zip
 
