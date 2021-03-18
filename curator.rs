@@ -12,6 +12,12 @@ fn print_path(property_path: &std::string::String) {
     print!("{}", parent.unwrap());
 }
 
+fn get_idf_id(idf_path: std::option::Option<& str>) -> String {
+    let idf_path_with_slash = format!("{}", idf_path.unwrap().replace("\\","/"));
+    let digest = md5::compute(idf_path_with_slash);
+    return format!("esp-idf-{:x}", digest);
+}
+
 fn main() {
     let idf_tools_path_env = "IDF_TOOLS_PATH";
 
@@ -19,9 +25,11 @@ fn main() {
         panic!("could not find {}: {}", idf_tools_path_env, e)
     });
 
-    let content = fs::read_to_string(idf_tools_path + "/esp_idf.json")
+    let idf_json_path = idf_tools_path + "/esp_idf.json";
+    let idf_slice: &str = &*idf_json_path;
+    let content = fs::read_to_string(idf_slice)
     .expect("Failure");
-    let parsed2 = json::parse(&content.to_string()).unwrap();
+    let mut parsed2 = json::parse(&content.to_string()).unwrap();
 
     let matches = App::new("My Test Program")
     .version("0.0.3")
@@ -71,9 +79,7 @@ fn main() {
         let property_name = matches.value_of("property").unwrap();
         let idf_path = matches.value_of("idf-path");
         if idf_path != None {
-            let idf_path_with_slash = format!("{}/", idf_path.unwrap().replace("\\","/"));
-            let digest = md5::compute(idf_path_with_slash);
-            let idf_id = format!("esp-idf-{:x}", digest);
+            let idf_id = get_idf_id(idf_path);
             let property_path = &parsed2["idfInstalled"][idf_id][property_name].to_string();
             print_path(property_path);
         } else {
@@ -82,5 +88,20 @@ fn main() {
         }
     } else if let Some(_) = matches.subcommand_matches("inspect") {
         println!("{}", &content);
+    } else if let Some(matches) = matches.subcommand_matches("add") {
+        let python_path = matches.value_of("python").unwrap();
+        let version = matches.value_of("idf-version").unwrap();
+        let idf_path = matches.value_of("idf-path");
+        let idf_id = get_idf_id(idf_path);
+        let s_slice: &str = &*idf_id;
+        let data = json::object!{
+            version: version,
+            python: python_path,
+            path: idf_path
+        };
+
+        parsed2["idfInstalled"].insert(s_slice, data);
+
+        fs::write(idf_slice, format!("{:#}", parsed2));
     }
 }
