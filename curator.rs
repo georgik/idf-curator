@@ -1,18 +1,18 @@
 extern crate json;
-
+use clap::{Arg, App, SubCommand};
 use std::env;
 use std::fs;
 use std::path::Path;
 
 use md5;
 
-fn help() {
-    println!("Help");
+fn print_path(property_path: &std::string::String) {
+    let path = Path::new(&property_path);
+    let parent = path.parent().unwrap().to_str();
+    print!("{}", parent.unwrap());
 }
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    let mut property_name = "";
     let idf_tools_path_env = "IDF_TOOLS_PATH";
 
     let idf_tools_path = env::var(idf_tools_path_env).unwrap_or_else(|e| {
@@ -23,44 +23,64 @@ fn main() {
     .expect("Failure");
     let parsed2 = json::parse(&content.to_string()).unwrap();
 
-    match args.len() {
-        // no arguments passed
-        1 => {
-            println!("My name is 'match_args'. Try passing some arguments!");
-        },
-        // one argument passed
-        3 => {
-            let cmd = &args[1];
-            property_name = &args[2];
-            match &cmd[..] {
-                "get-property" => {
-                    let git_path = &parsed2[property_name].to_string();
-                    let path = Path::new(&git_path);
-                    let parent = path.parent().unwrap().to_str();
-                    print!("{}", parent.unwrap());
-                },
-                _ => {
-                    eprintln!("error: invalid command");
-                    help();
-                },
-            }
-        },
-        5 => {
-            let _cmd = &args[1];
-            property_name = &args[2];
-            let _option_name = &args[3];
-            let idf_path = &args[4].replace("\\","/");
-            let idf_path_with_slash = format!("{}/", idf_path);
+    let matches = App::new("My Test Program")
+    .version("0.0.3")
+    .author("Juraj Michalek <juraj.michalek@espressif.com>")
+    .about("Maintain ESP-IDF installations")
+    .subcommand(SubCommand::with_name("get")
+        .arg(Arg::with_name("property")
+            .short("p")
+            .long("property")
+            .takes_value(true)
+            .help("Path to ESP-IDF installation"))
+        .arg(Arg::with_name("idf-path")
+            .short("i")
+            .long("idf-path")
+            .takes_value(true)
+            .help("Path to ESP-IDF installation"))
+    )
+    .subcommand(SubCommand::with_name("add")
+        .arg(Arg::with_name("idf-path")
+                .short("i")
+                .long("idf-path")
+                .takes_value(true)
+                .help("Path to ESP-IDF installation"))
+        .arg(Arg::with_name("python")
+                .short("p")
+                .long("python")
+                .takes_value(true)
+                .help("Full path to Python interpreter binary"))
+        .arg(Arg::with_name("git")
+                .short("g")
+                .long("git")
+                .takes_value(true)
+                .help("Full path to Git binary"))
+        .arg(Arg::with_name("idf-version")
+                .short("x")
+                .long("idf-version")
+                .takes_value(true)
+                .help("ESP-IDF version"))
+
+    )
+    .subcommand(SubCommand::with_name("rm"))
+    .subcommand(SubCommand::with_name("inspect"))
+    .get_matches();
+
+
+    if let Some(matches) = matches.subcommand_matches("get") {
+        let property_name = matches.value_of("property").unwrap();
+        let idf_path = matches.value_of("idf-path");
+        if idf_path != None {
+            let idf_path_with_slash = format!("{}/", idf_path.unwrap().replace("\\","/"));
             let digest = md5::compute(idf_path_with_slash);
             let idf_id = format!("esp-idf-{:x}", digest);
             let property_path = &parsed2["idfInstalled"][idf_id][property_name].to_string();
-            let path = Path::new(&property_path);
-            let parent = path.parent().unwrap().to_str();
-            print!("{}",  parent.unwrap());
-        },
-        _ => {
-            // show a help message
-            help();
+            print_path(property_path);
+        } else {
+            let property_path = &parsed2[property_name].to_string();
+            print_path(property_path);
         }
+    } else if let Some(_) = matches.subcommand_matches("inspect") {
+        println!("{}", &content);
     }
 }
