@@ -1,4 +1,3 @@
-#[macro_use]
 extern crate json;
 
 use std::env;
@@ -14,7 +13,6 @@ fn help() {
 fn main() {
     let args: Vec<String> = env::args().collect();
     let mut property_name = "";
-    let mut idf_id = format!("{}","");
     let idf_tools_path_env = "IDF_TOOLS_PATH";
 
     let idf_tools_path = env::var(idf_tools_path_env).unwrap_or_else(|e| {
@@ -48,13 +46,13 @@ fn main() {
             }
         },
         5 => {
-            let cmd = &args[1];
+            let _cmd = &args[1];
             property_name = &args[2];
-            let option_name = &args[3];
+            let _option_name = &args[3];
             let idf_path = &args[4].replace("\\","/");
             let idf_path_with_slash = format!("{}/", idf_path);
             let digest = md5::compute(idf_path_with_slash);
-            idf_id = format!("esp-idf-{:x}", digest);
+            let idf_id = format!("esp-idf-{:x}", digest);
             let property_path = &parsed2["idfInstalled"][idf_id][property_name].to_string();
             let path = Path::new(&property_path);
             let parent = path.parent().unwrap().to_str();

@@ -33,7 +33,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./release/curator.exe
+          asset_path: target/release/curator.exe
           asset_name: curator.exe
           asset_content_type: application/octet-stream
 
