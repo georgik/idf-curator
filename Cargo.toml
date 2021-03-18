@@ -1,0 +1,15 @@
+[package]
+name = "curator"
+version = "0.1.0"
+authors = ["Juraj Michalek <juraj.michalek@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+json = "*"
+md5 = "*"
+
+[[bin]]
+name = "curator"
+path = "curator.rs"
