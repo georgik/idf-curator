@@ -3,6 +3,8 @@ use clap::{Arg, App, SubCommand};
 use std::env;
 use std::fs;
 use std::path::Path;
+use std::process::Command;
+use std::process;
 
 use md5;
 
@@ -72,6 +74,39 @@ fn main() {
     )
     .subcommand(SubCommand::with_name("rm"))
     .subcommand(SubCommand::with_name("inspect"))
+    .subcommand(SubCommand::with_name("install")
+        .arg(Arg::with_name("installer")
+            .short("e")
+            .long("installer")
+            .takes_value(true)
+            .help("ESP-IDF installer tool"))
+        .arg(Arg::with_name("interactive")
+            .short("i")
+            .long("interactive")
+            .takes_value(false)
+            .help("Run in interactive mode"))
+        .arg(Arg::with_name("upgrade")
+            .short("u")
+            .long("upgrade")
+            .takes_value(false)
+            .help("Upgrade existing installation"))
+        .arg(Arg::with_name("idf-version")
+            .short("x")
+            .long("idf-version")
+            .takes_value(true)
+            .help("ESP-IDF version"))
+        .arg(Arg::with_name("idf-dir")
+            .short("d")
+            .long("idf-dir")
+            .takes_value(true)
+            .help("ESP-IDF installation directory"))
+        .arg(Arg::with_name("verbose")
+            .short("w")
+            .long("verbose")
+            .takes_value(false)
+            .help("display diagnostic log after installation"))
+
+    )
     .get_matches();
 
 
@@ -103,5 +138,80 @@ fn main() {
         parsed2["idfInstalled"].insert(s_slice, data);
 
         fs::write(idf_slice, format!("{:#}", parsed2));
+    } else if let Some(matches) = matches.subcommand_matches("install") {
+        let installer = matches.value_of("installer").unwrap();
+        let mut arguments : Vec<String> = [].to_vec();
+
+        if (!matches.is_present("interactive")) {
+            arguments.push("/VERYSILENT".to_string());
+            arguments.push("/SUPPRESSMSGBOXES".to_string());
+            arguments.push("/SP-".to_string());
+            arguments.push("/NOCANCEL".to_string());
+        }
+
+        if (matches.value_of("idf-version").is_some()) {
+            let version = matches.value_of("idf-version").unwrap();
+            let parameter = (String::from("/IDFVERSION=") + version);
+            arguments.push(parameter);
+        }
+
+        if (matches.is_present("verbose")) {
+            arguments.push("/LOG=log.txt".to_string());
+        }
+
+        if (matches.value_of("idf-dir").is_some()) {
+            let dir = matches.value_of("idf-dir").unwrap();
+            let parameter = (String::from("/IDFDIR=") + dir);
+            arguments.push(parameter);
+            let path_exists = Path::new(dir).exists();
+
+            if (matches.is_present("upgrade")) {
+                if (!path_exists) {
+                    println!("Unable to upgrade, path does not exist: {}", dir);
+                    println!("Specify path to existing idf, or install new one without --upgrade parameter.");
+                    process::exit(1);
+                }
+                arguments.push("/IDFUSEEXISTING=yes".to_string());
+            } else {
+                if (path_exists) {
+                    println!("Unable to install fresh version of IDF to existing directory: {}", dir);
+                    println!("Options:");
+                    println!("* specify --upgrade parameter to update existing installation");
+                    println!("* specify --idf-path to directory which does not exit");
+                    process::exit(1);
+                }
+            }
+        }
+
+        let output = if cfg!(target_os = "windows") {
+            println!("{} {:?}", installer, arguments);
+            Command::new(installer)
+                    .args(arguments)
+                    .output()
+                    .expect("failed to execute process")
+        } else {
+            Command::new("sh")
+                    .arg("-c")
+                    .arg("echo hello")
+                    .output()
+                    .expect("failed to execute process")
+        };
+        let data = output.stdout;
+        if (matches.is_present("verbose")) {
+
+            let output_debug = if cfg!(target_os = "windows") {
+                Command::new("notepad.exe")
+                        .args(&["log.txt"])
+                        .output()
+                        .expect("failed to execute process")
+            } else {
+                Command::new("sh")
+                        .arg("-c")
+                        .arg("echo hello")
+                        .output()
+                        .expect("failed to execute process")
+            };
+        }
+
     }
 }
