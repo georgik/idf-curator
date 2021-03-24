@@ -10,6 +10,8 @@ edition = "2018"
 clap = "*"
 json = "*"
 md5 = "*"
+reqwest = "*"
+tokio = { version = "1", features = ["full"] }
 
 [[bin]]
 name = "curator"

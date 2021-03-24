@@ -5,8 +5,13 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 use std::process;
+use std::io::Cursor;
 
 use md5;
+use reqwest;
+
+type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
+
 
 fn print_path(property_path: &std::string::String) {
     let path = Path::new(&property_path);
@@ -20,7 +25,34 @@ fn get_idf_id(idf_path: std::option::Option<& str>) -> String {
     return format!("esp-idf-{:x}", digest);
 }
 
-fn main() {
+fn get_installer(matches: &clap::ArgMatches) -> String {
+    if matches.is_present("installer") {
+        return matches.value_of("installer").unwrap().to_string();
+    }
+    return "installer.exe".to_string();
+}
+
+async fn fetch_url(url: String) -> Result<()> {
+    let response = reqwest::get(url).await?;
+    let mut file = std::fs::File::create("installer.exe")?;
+    let mut content =  Cursor::new(response.bytes().await?);
+    std::io::copy(&mut content, &mut file)?;
+    Ok(())
+}
+
+async fn download_installer() -> Result<()> {
+    if Path::new("installer.exe").exists() {
+        println!("Using cached installer.");
+        return Ok(());
+    }
+    let url_string = "https://github.com/espressif/idf-installer/releases/download/online-2.7-beta-04/esp-idf-tools-setup-online-2.7-beta-04.exe".to_string();
+    fetch_url(url_string).await?;
+
+    Ok(())
+}
+
+async fn app() -> Result<()> {
+
     let idf_tools_path_env = "IDF_TOOLS_PATH";
 
     let idf_tools_path = env::var(idf_tools_path_env).unwrap_or_else(|e| {
@@ -70,7 +102,6 @@ fn main() {
                 .long("idf-version")
                 .takes_value(true)
                 .help("ESP-IDF version"))
-
     )
     .subcommand(SubCommand::with_name("rm"))
     .subcommand(SubCommand::with_name("inspect"))
@@ -109,7 +140,6 @@ fn main() {
     )
     .get_matches();
 
-
     if let Some(matches) = matches.subcommand_matches("get") {
         let property_name = matches.value_of("property").unwrap();
         let idf_path = matches.value_of("idf-path");
@@ -129,51 +159,54 @@ fn main() {
         let idf_path = matches.value_of("idf-path");
         let idf_id = get_idf_id(idf_path);
         let s_slice: &str = &*idf_id;
-        let data = json::object!{
+        let _data = json::object!{
             version: version,
             python: python_path,
             path: idf_path
         };
 
-        parsed2["idfInstalled"].insert(s_slice, data);
+        parsed2["idfInstalled"].insert(s_slice, _data).unwrap();
 
-        fs::write(idf_slice, format!("{:#}", parsed2));
+        fs::write(idf_slice, format!("{:#}", parsed2)).unwrap();
     } else if let Some(matches) = matches.subcommand_matches("install") {
-        let installer = matches.value_of("installer").unwrap();
         let mut arguments : Vec<String> = [].to_vec();
 
-        if (!matches.is_present("interactive")) {
+        if !matches.is_present("installer") {
+            download_installer().await?;
+        }
+
+        if !matches.is_present("interactive") {
             arguments.push("/VERYSILENT".to_string());
             arguments.push("/SUPPRESSMSGBOXES".to_string());
             arguments.push("/SP-".to_string());
             arguments.push("/NOCANCEL".to_string());
         }
 
-        if (matches.value_of("idf-version").is_some()) {
+        if matches.is_present("idf-version") {
             let version = matches.value_of("idf-version").unwrap();
-            let parameter = (String::from("/IDFVERSION=") + version);
+            let parameter = String::from("/IDFVERSION=") + version;
             arguments.push(parameter);
         }
 
-        if (matches.is_present("verbose")) {
+        if matches.is_present("verbose") {
             arguments.push("/LOG=log.txt".to_string());
         }
 
-        if (matches.value_of("idf-dir").is_some()) {
+        if matches.value_of("idf-dir").is_some() {
             let dir = matches.value_of("idf-dir").unwrap();
-            let parameter = (String::from("/IDFDIR=") + dir);
+            let parameter = String::from("/IDFDIR=") + dir;
             arguments.push(parameter);
             let path_exists = Path::new(dir).exists();
 
-            if (matches.is_present("upgrade")) {
-                if (!path_exists) {
+            if matches.is_present("upgrade") {
+                if !path_exists {
                     println!("Unable to upgrade, path does not exist: {}", dir);
                     println!("Specify path to existing idf, or install new one without --upgrade parameter.");
                     process::exit(1);
                 }
                 arguments.push("/IDFUSEEXISTING=yes".to_string());
             } else {
-                if (path_exists) {
+                if path_exists {
                     println!("Unable to install fresh version of IDF to existing directory: {}", dir);
                     println!("Options:");
                     println!("* specify --upgrade parameter to update existing installation");
@@ -184,8 +217,8 @@ fn main() {
         }
 
         let output = if cfg!(target_os = "windows") {
-            println!("{} {:?}", installer, arguments);
-            Command::new(installer)
+            println!("{} {:?}", get_installer(matches), arguments);
+            Command::new(get_installer(matches))
                     .args(arguments)
                     .output()
                     .expect("failed to execute process")
@@ -196,10 +229,10 @@ fn main() {
                     .output()
                     .expect("failed to execute process")
         };
-        let data = output.stdout;
-        if (matches.is_present("verbose")) {
+        let _data = output.stdout;
+        if matches.is_present("verbose") {
 
-            let output_debug = if cfg!(target_os = "windows") {
+            if cfg!(target_os = "windows") {
                 Command::new("notepad.exe")
                         .args(&["log.txt"])
                         .output()
@@ -214,4 +247,11 @@ fn main() {
         }
 
     }
+
+    return Ok(());
+}
+
+#[tokio::main]
+async fn main() {
+    app().await.unwrap();
 }
