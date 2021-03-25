@@ -10,6 +10,10 @@ use std::io::Cursor;
 use md5;
 use reqwest;
 
+use wmi::*;
+use std::collections::HashMap;
+use wmi::Variant;
+
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 
@@ -45,7 +49,7 @@ async fn download_installer() -> Result<()> {
         println!("Using cached installer.");
         return Ok(());
     }
-    let url_string = "https://github.com/espressif/idf-installer/releases/download/online-2.7-beta-04/esp-idf-tools-setup-online-2.7-beta-04.exe".to_string();
+    let url_string = "https://github.com/espressif/idf-installer/releases/download/online-2.7-beta-05/esp-idf-tools-setup-online-2.7-beta-05.exe".to_string();
     fetch_url(url_string).await?;
 
     Ok(())
@@ -138,6 +142,15 @@ async fn app() -> Result<()> {
             .help("display diagnostic log after installation"))
 
     )
+    .subcommand(SubCommand::with_name("antivirus")
+        // .subcommand(SubCommand::with_name("get")
+        .arg(Arg::with_name("property")
+            .short("p")
+            .long("property")
+            .takes_value(true)
+            .help("Get property from antivirus query"))
+            // )
+        )
     .get_matches();
 
     if let Some(matches) = matches.subcommand_matches("get") {
@@ -246,6 +259,19 @@ async fn app() -> Result<()> {
             };
         }
 
+    } else if let Some(matches) = matches.subcommand_matches("antivirus") {
+        // let wmi_con = WMIConnection::new(COMLibrary::new()?.into())?;
+        let property_name = matches.value_of("property").unwrap();
+        let wmi_con = WMIConnection::with_namespace_path("ROOT\\SecurityCenter2", COMLibrary::new()?.into())?;
+        let results: Vec<HashMap<String, Variant>> = wmi_con.raw_query("SELECT * FROM AntiVirusProduct").unwrap();
+        for antivirus_product in results {
+            let property_value = &antivirus_product[property_name];
+
+            if let Variant::String(value) = property_value {
+                println!("{}", value )
+            }
+
+        }
     }
 
     return Ok(());

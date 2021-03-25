@@ -12,6 +12,7 @@ json = "*"
 md5 = "*"
 reqwest = "*"
 tokio = { version = "1", features = ["full"] }
+wmi = "*"
 
 [[bin]]
 name = "curator"
