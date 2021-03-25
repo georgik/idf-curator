@@ -55,19 +55,23 @@ async fn download_installer() -> Result<()> {
     Ok(())
 }
 
-async fn app() -> Result<()> {
-
+fn get_json_path() -> String {
     let idf_tools_path_env = "IDF_TOOLS_PATH";
 
     let idf_tools_path = env::var(idf_tools_path_env).unwrap_or_else(|e| {
         panic!("could not find {}: {}", idf_tools_path_env, e)
     });
-
     let idf_json_path = idf_tools_path + "/esp_idf.json";
-    let idf_slice: &str = &*idf_json_path;
-    let content = fs::read_to_string(idf_slice)
+    return idf_json_path;
+}
+
+fn load_json() -> json::JsonValue {
+    let content = fs::read_to_string(get_json_path())
     .expect("Failure");
-    let mut parsed2 = json::parse(&content.to_string()).unwrap();
+    return json::parse(&content.to_string()).unwrap();
+}
+
+async fn app() -> Result<()> {
 
     let matches = App::new("My Test Program")
     .version("0.0.3")
@@ -156,16 +160,18 @@ async fn app() -> Result<()> {
     if let Some(matches) = matches.subcommand_matches("get") {
         let property_name = matches.value_of("property").unwrap();
         let idf_path = matches.value_of("idf-path");
+        let parsed_json = load_json();
         if idf_path != None {
             let idf_id = get_idf_id(idf_path);
-            let property_path = &parsed2["idfInstalled"][idf_id][property_name].to_string();
+            let property_path = &parsed_json["idfInstalled"][idf_id][property_name].to_string();
             print_path(property_path);
         } else {
-            let property_path = &parsed2[property_name].to_string();
+            let property_path = &parsed_json[property_name].to_string();
             print_path(property_path);
         }
     } else if let Some(_) = matches.subcommand_matches("inspect") {
-        println!("{}", &content);
+        let content = load_json();
+        println!("{:#}", &content);
     } else if let Some(matches) = matches.subcommand_matches("add") {
         let python_path = matches.value_of("python").unwrap();
         let version = matches.value_of("idf-version").unwrap();
@@ -178,9 +184,10 @@ async fn app() -> Result<()> {
             path: idf_path
         };
 
-        parsed2["idfInstalled"].insert(s_slice, _data).unwrap();
+        let mut parsed_json = load_json();
+        parsed_json["idfInstalled"].insert(s_slice, _data).unwrap();
 
-        fs::write(idf_slice, format!("{:#}", parsed2)).unwrap();
+        fs::write(get_json_path(), format!("{:#}", parsed_json)).unwrap();
     } else if let Some(matches) = matches.subcommand_matches("install") {
         let mut arguments : Vec<String> = [].to_vec();
 
@@ -268,7 +275,7 @@ async fn app() -> Result<()> {
             let property_value = &antivirus_product[property_name];
 
             if let Variant::String(value) = property_value {
-                println!("{}", value )
+                print!("{}", value )
             }
 
         }
