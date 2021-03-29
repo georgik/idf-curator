@@ -8,6 +8,7 @@ edition = "2018"
 
 [dependencies]
 clap = "*"
+clap-nested = "*"
 json = "*"
 md5 = "*"
 reqwest = "*"
