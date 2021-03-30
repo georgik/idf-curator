@@ -8,6 +8,7 @@ type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>
 
 mod antivirus;
 mod config;
+mod driver;
 mod idf;
 
 async fn app() -> Result<()> {
@@ -27,6 +28,7 @@ async fn app() -> Result<()> {
     .args(|_args, matches| matches.value_of("environment").unwrap_or("dev"))
     .add_cmd(antivirus::get_multi_cmd())
     .add_cmd(config::get_multi_cmd())
+    .add_cmd(driver::get_multi_cmd())
     .add_cmd(idf::get_multi_cmd())
     .no_cmd(|_args, _matches| {
         println!("No subcommand matched");

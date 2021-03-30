@@ -29,3 +29,11 @@ curator antivirus get --property displayName
 curator antivirus register --path "C:\....exe"
 curator antivirus unregister --path "C:\....exe"
 ```
+
+
+### Working with drivers
+
+```
+curator driver get
+curator driver install
+```

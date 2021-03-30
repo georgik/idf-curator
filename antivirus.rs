@@ -30,6 +30,7 @@ pub fn get_cmd<'a>() -> Command<'a, str> {
             app.arg(
                 Arg::with_name("property")
                     .short("p")
+                    .long("property")
                     .help("Filter result for property name")
                     .takes_value(true),
             )
