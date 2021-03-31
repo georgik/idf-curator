@@ -1,3 +1,4 @@
+use core::ptr::null_mut;
 use clap::Arg;
 use clap_nested::{Command, Commander, MultiCommand};
 use std::path::Path;
@@ -5,11 +6,11 @@ use std::io::Cursor;
 use wmi::*;
 use std::collections::HashMap;
 use wmi::Variant;
-use tokio::runtime::Runtime;
-use tokio::task;
 use tokio::runtime::Handle;
-
-
+use std::fs;
+use std::io;
+use std::ffi::OsStr;
+use std::os::windows::prelude::*;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
@@ -60,8 +61,7 @@ fn download_driver() -> Result<()> {
     let th = std::thread::spawn(move || {
         handle.block_on(download_zip("https://www.silabs.com/documents/public/software/CP210x_Universal_Windows_Driver.zip".to_string(), driver_archive)).unwrap();
     });
-    th.join().unwrap();
-    Ok(())
+    Ok(th.join().unwrap())
 }
 
 pub fn get_cmd<'a>() -> Command<'a, str> {
@@ -93,62 +93,94 @@ pub fn get_cmd<'a>() -> Command<'a, str> {
         })
 }
 
-fn  get_runner(_args:&str, matches:&clap::ArgMatches<'_>)  -> std::result::Result<(), clap::Error> {
-    let mut arguments : Vec<String> = [].to_vec();
-    download_driver().unwrap();
+fn unzip(file_path:String) -> Result<()> {
+    let file_name = std::path::Path::new(&file_path);
+    let file = fs::File::open(&file_name).unwrap();
+
+    let mut archive = zip::ZipArchive::new(file).unwrap();
+
+    for i in 0..archive.len() {
+        let mut file = archive.by_index(i).unwrap();
+        let file_outpath = match file.enclosed_name() {
+            Some(path) => path.to_owned(),
+            None => continue,
+        };
+
+        // Add path prefix to extract the file
+        let mut outpath = std::path::PathBuf::new();
+        outpath.push("tmp/");
+        outpath.push(file_outpath);
+
+        {
+            let comment = file.comment();
+            if !comment.is_empty() {
+                println!("File {} comment: {}", i, comment);
+            }
+        }
+
+        if (&*file.name()).ends_with('/') {
+            println!("File {} extracted to \"{}\"", i, outpath.display());
+            fs::create_dir_all(&outpath).unwrap();
+        } else {
+            println!(
+                "File {} extracted to \"{}\" ({} bytes)",
+                i,
+                outpath.display(),
+                file.size()
+            );
+            if let Some(p) = outpath.parent() {
+                if !p.exists() {
+                    fs::create_dir_all(&p).unwrap();
+                }
+            }
+            let mut outfile = fs::File::create(&outpath).unwrap();
+            io::copy(&mut file, &mut outfile).unwrap();
+        }
+    }
     Ok(())
-    // if !matches.is_present("installer")  {
-    //     download_installer();
-    // }
+}
 
-    // if !matches.is_present("interactive") {
-    //     arguments.push("/VERYSILENT".to_string());
-    //     arguments.push("/SUPPRESSMSGBOXES".to_string());
-    //     arguments.push("/SP-".to_string());
-    //     arguments.push("/NOCANCEL".to_string());
-    // }
+fn to_wchar(str : &str) -> Vec<u16> {
+    OsStr::new(str).encode_wide().chain(Some(0).into_iter()).collect()
+}
 
-    // if matches.is_present("idf-version") {
-    //     let version = matches.value_of("idf-version").unwrap();
-    //     let parameter = String::from("/IDFVERSION=") + version;
-    //     arguments.push(parameter);
-    // }
+fn get_runner(_args:&str, _matches:&clap::ArgMatches<'_>)  -> std::result::Result<(), clap::Error> {
+    download_driver().unwrap();
+    if !Path::new("tmp/silabser.inf").exists() {
+        unzip("driver.zip".to_string()).unwrap();
+    }
 
-    // if matches.is_present("verbose") {
-    //     arguments.push("/LOG=log.txt".to_string());
-    // }
+    // Reference: https://github.com/microsoft/Windows-driver-samples/tree/master/setup/devcon
+    // SetupCopyOEMInf(SourceInfFileName,
+    //     NULL,
+    //     SPOST_PATH,
+    //     0,
+    //     DestinationInfFileName,
+    //     ARRAYSIZE(DestinationInfFileName),
+    //     NULL,
+    //     &DestinationInfFileNameComponent))
+    // Rust: https://docs.rs/winapi/0.3.9/winapi/um/setupapi/fn.SetupCopyOEMInfW.html
 
+    let source_inf_filename = to_wchar("tmp/silabser.inf").as_ptr();
+    let mut destination_inf_filename_vec: Vec<u16> = Vec::with_capacity(255);
+    let destination_inf_filename = destination_inf_filename_vec.as_mut_ptr();
+    let destination_inf_filename_len = 254;
+    let mut v: Vec<u16> = Vec::with_capacity(255);
+    let mut a: winapi::um::winnt::PWSTR = v.as_mut_ptr();
+    unsafe {
+    let result = winapi::um::setupapi::SetupCopyOEMInfW(
+        source_inf_filename,
+        null_mut(),
+        winapi::um::setupapi::SPOST_PATH,
+        0,
+        destination_inf_filename,
+        destination_inf_filename_len,
+        null_mut(),
+        &mut a as *mut _);
+        println!("{:#}", result);
+    }
 
-    // let output = if cfg!(target_os = "windows") {
-    //     println!("{} {:?}", get_installer(matches), arguments);
-    //     std::process::Command::new(get_installer(matches))
-    //             .args(arguments)
-    //             .output()
-    //             .expect("failed to execute process")
-    // } else {
-    //     std::process::Command::new("sh")
-    //             .arg("-c")
-    //             .arg("echo hello")
-    //             .output()
-    //             .expect("failed to execute process")
-    // };
-    // let _data = output.stdout;
-    // if matches.is_present("verbose") {
-
-    //     if cfg!(target_os = "windows") {
-    //         std::process::Command::new("notepad.exe")
-    //                 .args(&["log.txt"])
-    //                 .output()
-    //                 .expect("failed to execute process")
-    //     } else {
-    //         std::process::Command::new("sh")
-    //                 .arg("-c")
-    //                 .arg("echo hello")
-    //                 .output()
-    //                 .expect("failed to execute process")
-    //     };
-    // }
-
+    Ok(())
 }
 
 pub fn get_install_cmd<'a>() -> Command<'a, str> {

@@ -3,6 +3,7 @@ use clap_nested::{Command, Commander, MultiCommand};
 use std::path::Path;
 use std::io::Cursor;
 use std::process;
+use tokio::runtime::Handle;
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 
@@ -21,15 +22,19 @@ async fn fetch_url(url: String) -> Result<()> {
     Ok(())
 }
 
-async fn download_installer() -> Result<()> {
+fn download_installer() -> Result<()> {
     if Path::new("installer.exe").exists() {
         println!("Using cached installer.");
         return Ok(());
     }
     let url_string = "https://github.com/espressif/idf-installer/releases/download/online-2.7-beta-06/esp-idf-tools-setup-online-2.7-beta-06.exe".to_string();
-    fetch_url(url_string).await?;
 
-    Ok(())
+    let handle = Handle::current().clone();
+    let th = std::thread::spawn(move || {
+        handle.block_on(fetch_url(url_string))
+    });
+    th.join().unwrap()
+
 }
 
 
@@ -79,7 +84,7 @@ pub fn get_install_cmd<'a>() -> Command<'a, str> {
             let mut arguments : Vec<String> = [].to_vec();
 
             if !matches.is_present("installer")  {
-                download_installer();
+                download_installer().unwrap();
             }
 
             if !matches.is_present("interactive") {

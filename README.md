@@ -35,5 +35,10 @@ curator antivirus unregister --path "C:\....exe"
 
 ```
 curator driver get
+```
+
+Run in elevated shell - requires Administrator privileges:
+
+```
 curator driver install
 ```

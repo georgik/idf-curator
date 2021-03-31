@@ -14,6 +14,9 @@ md5 = "*"
 reqwest = "*"
 tokio = { version = "1", features = ["full"] }
 wmi = "*"
+widestring = "*"
+winapi = { version = "*", features = ["setupapi"] }
+zip = "*"
 
 [[bin]]
 name = "curator"
