@@ -35,10 +35,12 @@ curator antivirus unregister --path "C:\....exe"
 
 ```
 curator driver get
+curator driver get --property DeviceID
+curator driver get --property DeviceID --missing
 ```
 
 Run in elevated shell - requires Administrator privileges:
 
 ```
-curator driver install
+curator driver install --ftdi --silabs
 ```

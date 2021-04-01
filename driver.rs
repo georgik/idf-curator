@@ -15,14 +15,22 @@ use std::os::windows::prelude::*;
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 
-fn get_driver_property(property_name: String, query: String) -> Result<()>  {
+fn get_driver_property(property_name: String, filter: String) -> Result<()>  {
     let wmi_con = WMIConnection::with_namespace_path("ROOT\\CIMV2", COMLibrary::new()?.into())?;
+    let query = format!("SELECT {} FROM Win32_PnPEntity WHERE {}", property_name, filter);
+    // println!("Query: {}", query);
     let results: Vec<HashMap<String, Variant>> = wmi_con.raw_query(query).unwrap();
-    for driver_item in results {
-        let property_value = &driver_item[&property_name];
 
-        if let Variant::String(value) = property_value {
-            print!("{}", value )
+    for driver_item in results {
+        match property_name == "*" {
+            true => println!("{:#?}", driver_item),
+            _ => {
+                let property_value = &driver_item[&property_name];
+
+                if let Variant::String(value) = property_value {
+                    println!("{}", value )
+                }
+            },
         }
 
     }
@@ -31,17 +39,17 @@ fn get_driver_property(property_name: String, query: String) -> Result<()>  {
 
 fn get_installed_driver_property(property_name: String) -> Result<()> {
     // Driver classes: https://docs.microsoft.com/en-us/windows-hardware/drivers/install/system-defined-device-setup-classes-available-to-vendors?redirectedfrom=MSDN
-    return get_driver_property(property_name, "SELECT * FROM Win32_PnPEntity WHERE ClassGuid=\"{4d36e978-e325-11ce-bfc1-08002be10318}\"".to_string());
+    return get_driver_property(property_name, "ClassGuid=\"{4d36e978-e325-11ce-bfc1-08002be10318}\"".to_string());
 }
 
 fn get_missing_driver_property(property_name: String) -> Result<()> {
     // https://stackoverflow.com/questions/11367639/get-a-list-of-devices-with-missing-drivers-using-powershell
-    return get_driver_property(property_name, "SELECT * FROM Win32_PnPEntity WHERE ConfigManagerErrorCode>0".to_string());
+    return get_driver_property(property_name, "ConfigManagerErrorCode>0".to_string());
 }
 
-async fn fetch_url(url: String) -> Result<()> {
+async fn fetch_url(url: String, output: String) -> Result<()> {
     let response = reqwest::get(url).await?;
-    let mut file = std::fs::File::create("driver.zip")?;
+    let mut file = std::fs::File::create(output)?;
     let mut content =  Cursor::new(response.bytes().await?);
     std::io::copy(&mut content, &mut file)?;
     Ok(())
@@ -52,14 +60,13 @@ async fn download_zip(url: String, output: String) -> Result<()> {
         println!("Using cached driver.");
         return Ok(());
     }
-    fetch_url(url).await
+    fetch_url(url, output).await
 }
 
-fn download_driver() -> Result<()> {
-    let driver_archive = "driver.zip".to_string();
+fn download_driver(driver_url:String, driver_archive: String) -> Result<()> {
     let handle = Handle::current().clone();
     let th = std::thread::spawn(move || {
-        handle.block_on(download_zip("https://www.silabs.com/documents/public/software/CP210x_Universal_Windows_Driver.zip".to_string(), driver_archive)).unwrap();
+        handle.block_on(download_zip(driver_url, driver_archive)).unwrap();
     });
     Ok(th.join().unwrap())
 }
@@ -73,7 +80,8 @@ pub fn get_cmd<'a>() -> Command<'a, str> {
                     .short("p")
                     .long("property")
                     .help("Filter result for property name")
-                    .takes_value(true),
+                    .takes_value(true)
+                    .default_value("*"),
             )
             .arg(
                 Arg::with_name("missing")
@@ -144,10 +152,11 @@ fn to_wchar(str : &str) -> Vec<u16> {
     OsStr::new(str).encode_wide().chain(Some(0).into_iter()).collect()
 }
 
-fn get_runner(_args:&str, _matches:&clap::ArgMatches<'_>)  -> std::result::Result<(), clap::Error> {
-    download_driver().unwrap();
-    if !Path::new("tmp/silabser.inf").exists() {
-        unzip("driver.zip".to_string()).unwrap();
+fn install_driver(driver_inf:String, driver_url: String, _driver_archive: String) {
+    let driver_archive = _driver_archive.clone();
+    download_driver(driver_url, _driver_archive).unwrap();
+    if !Path::new(&driver_inf).exists() {
+        unzip(driver_archive).unwrap();
     }
 
     // Reference: https://github.com/microsoft/Windows-driver-samples/tree/master/setup/devcon
@@ -161,7 +170,8 @@ fn get_runner(_args:&str, _matches:&clap::ArgMatches<'_>)  -> std::result::Resul
     //     &DestinationInfFileNameComponent))
     // Rust: https://docs.rs/winapi/0.3.9/winapi/um/setupapi/fn.SetupCopyOEMInfW.html
 
-    let source_inf_filename = to_wchar("tmp/silabser.inf").as_ptr();
+    // let source_inf_filename = to_wchar("tmp/silabser.inf").as_ptr();
+    let source_inf_filename = to_wchar(&driver_inf).as_ptr();
     let mut destination_inf_filename_vec: Vec<u16> = Vec::with_capacity(255);
     let destination_inf_filename = destination_inf_filename_vec.as_mut_ptr();
     let destination_inf_filename_len = 254;
@@ -179,6 +189,20 @@ fn get_runner(_args:&str, _matches:&clap::ArgMatches<'_>)  -> std::result::Resul
         &mut a as *mut _);
         println!("{:#}", result);
     }
+}
+
+fn get_runner(_args:&str, _matches:&clap::ArgMatches<'_>)  -> std::result::Result<(), clap::Error> {
+    if _matches.is_present("silabs") {
+        install_driver("tmp/silabser.inf".to_string(),
+            "https://www.silabs.com/documents/public/software/CP210x_Universal_Windows_Driver.zip".to_string(), 
+            "cp210x.zip".to_string());
+    }
+
+    if _matches.is_present("ftdi") {
+        install_driver("tmp/ftdiport.inf".to_string(),
+            "https://www.ftdichip.com/Drivers/CDM/CDM%20v2.12.28%20WHQL%20Certified.zip".to_string(),
+            "ftdi.zip".to_string());
+    }
 
     Ok(())
 }
@@ -188,16 +212,16 @@ pub fn get_install_cmd<'a>() -> Command<'a, str> {
         .description("Install driver")
         .options(|app| {
             app.arg(
-                Arg::with_name("installer")
-                    .short("e")
-                    .long("installer")
-                    .help("Path to installer binary"),
+                Arg::with_name("ftdi")
+                    .short("f")
+                    .long("ftdi")
+                    .help("Install ftdi driver"),
             )
             .arg(
-                Arg::with_name("interactive")
-                    .short("i")
-                    .long("interactive")
-                    .help("Run installation in interactive mode"),
+                Arg::with_name("silabs")
+                    .short("s")
+                    .long("silabs")
+                    .help("Install Silabs drivers"),
 
             )
             .arg(
