@@ -11,6 +11,7 @@ use std::fs;
 use std::io;
 use std::ffi::OsStr;
 use std::os::windows::prelude::*;
+mod windows;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
@@ -191,17 +192,62 @@ fn install_driver(driver_inf:String, driver_url: String, _driver_archive: String
     }
 }
 
-fn get_runner(_args:&str, _matches:&clap::ArgMatches<'_>)  -> std::result::Result<(), clap::Error> {
-    if _matches.is_present("silabs") {
-        install_driver("tmp/silabser.inf".to_string(),
-            "https://www.silabs.com/documents/public/software/CP210x_Universal_Windows_Driver.zip".to_string(), 
-            "cp210x.zip".to_string());
-    }
 
-    if _matches.is_present("ftdi") {
-        install_driver("tmp/ftdiport.inf".to_string(),
-            "https://www.ftdichip.com/Drivers/CDM/CDM%20v2.12.28%20WHQL%20Certified.zip".to_string(),
-            "ftdi.zip".to_string());
+pub fn to_u16s<S: AsRef<OsStr>>(s: S) -> io::Result<Vec<u16>> {
+    fn inner(s: &OsStr) -> io::Result<Vec<u16>> {
+        let mut maybe_result: Vec<u16> = s.encode_wide().collect();
+        if maybe_result.iter().any(|&u| u == 0) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "strings passed to WinAPI cannot contain NULs",
+            ));
+        }
+        maybe_result.push(0);
+        Ok(maybe_result)
+    }
+    inner(s.as_ref())
+}
+
+fn get_runner(_args:&str, _matches:&clap::ArgMatches<'_>)  -> std::result::Result<(), clap::Error> {
+    if windows::is_app_elevated() {
+        if _matches.is_present("silabs") {
+            install_driver("tmp/silabser.inf".to_string(),
+                "https://www.silabs.com/documents/public/software/CP210x_Universal_Windows_Driver.zip".to_string(), 
+                "cp210x.zip".to_string());
+        }
+
+        if _matches.is_present("ftdi") {
+            install_driver("tmp/ftdiport.inf".to_string(),
+                "https://www.ftdichip.com/Drivers/CDM/CDM%20v2.12.28%20WHQL%20Certified.zip".to_string(),
+                "ftdi.zip".to_string());
+        }
+    } else {
+        // Based on https://github.com/rust-lang/rustup/pull/1117/files
+        println!("Installation requires elevated privileges.");
+        println!("Requesting elevation.");
+        let operation = to_u16s(r"runas")?.as_ptr();
+        let current_exe = std::env::current_exe().unwrap().display().to_string();
+        let path = to_u16s(&current_exe)?.as_ptr();
+        let parameters_string = r"driver install --ftdi --silabs";
+        let parameters = to_u16s(&parameters_string)?.as_ptr();
+        println!("Executing: {} {}", current_exe, parameters_string);
+        let result = unsafe {
+            winapi::um::shellapi::ShellExecuteW(null_mut(),
+                          operation,
+                          path,
+                          parameters,
+                          null_mut(),
+                          5)
+        };
+        println!("{:?}", result);
+        // pub fn ShellExecuteA(
+        //     hwnd: HWND,
+        //     lpOperation: LPCSTR,
+        //     lpFile: LPCSTR,
+        //     lpParameters: LPCSTR,
+        //     lpDirectory: LPCSTR,
+        //     nShowCmd: c_int,
+        // ) -> HINSTANCE;
     }
 
     Ok(())
@@ -209,7 +255,7 @@ fn get_runner(_args:&str, _matches:&clap::ArgMatches<'_>)  -> std::result::Resul
 
 pub fn get_install_cmd<'a>() -> Command<'a, str> {
     Command::new("install")
-        .description("Install driver")
+        .description("Install driver - requires elevated privileges")
         .options(|app| {
             app.arg(
                 Arg::with_name("ftdi")
