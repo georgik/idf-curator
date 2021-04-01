@@ -15,7 +15,7 @@ reqwest = "*"
 tokio = { version = "1", features = ["full"] }
 wmi = "*"
 widestring = "*"
-winapi = { version = "*", features = ["setupapi"] }
+winapi = { version = "*", features = ["setupapi", "handleapi", "processthreadsapi", "winnt", "securitybaseapi", "impl-default", "shellapi"] }
 zip = "*"
 
 [[bin]]

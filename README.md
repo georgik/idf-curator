@@ -39,7 +39,8 @@ curator driver get --property DeviceID
 curator driver get --property DeviceID --missing
 ```
 
-Run in elevated shell - requires Administrator privileges:
+Run in elevated shell - requires Administrator privileges.
+Tools will request elevated privileges by UAC if necessary.
 
 ```
 curator driver install --ftdi --silabs
