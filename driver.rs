@@ -232,12 +232,14 @@ fn get_runner(_args:&str, _matches:&clap::ArgMatches<'_>)  -> std::result::Resul
         let parameters = to_u16s(&parameters_string)?.as_ptr();
         println!("Executing: {} {}", current_exe, parameters_string);
         let result = unsafe {
+            // https://docs.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shellexecutew
+            let sw_showminnoactive = 7;
             winapi::um::shellapi::ShellExecuteW(null_mut(),
                           operation,
                           path,
                           parameters,
                           null_mut(),
-                          5)
+                          sw_showminnoactive)
         };
         println!("{:?}", result);
         // pub fn ShellExecuteA(
