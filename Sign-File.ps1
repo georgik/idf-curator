@@ -35,12 +35,12 @@ function SignInstaller {
     $CertificateFile = [system.io.path]::GetTempPath() + "certificate.pfx"
 
     if ($null -eq $env:CERTIFICATE) {
-        "CERTIFICATE variable not set, unable to sign installer"
+        "CERTIFICATE variable not set, unable to sign the file"
         Exit 1
     }
 
     if ("" -eq $env:CERTIFICATE) {
-        "CERTIFICATE variable is empty, unable to sign installer"
+        "CERTIFICATE variable is empty, unable to sign the file"
         Exit 1
     }
 
