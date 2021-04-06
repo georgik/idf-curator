@@ -16,6 +16,9 @@ jobs:
         with:
           toolchain: stable
       - run: cargo build --release --all-features
+      - name: Sign artifact
+        shell: pwsh
+        run: ./Sign-File.ps1 -Path target/release/curator.exe
       - name: ZIP artifact
         shell: pwsh
         run: Compress-Archive -Path target/release/curator.exe -DestinationPath idf-curator.zip
