@@ -1,14 +1,18 @@
-use core::ptr::null_mut;
+
 use clap::Arg;
 use clap_nested::{Command, Commander, MultiCommand};
 use std::path::Path;
 use std::io::Cursor;
+#[cfg(windows)]
 use std::collections::HashMap;
 use tokio::runtime::Handle;
 use std::fs;
 use std::io;
+#[cfg(windows)]
 use std::ffi::OsStr;
 
+#[cfg(windows)]
+use core::ptr::null_mut;
 #[cfg(windows)]
 use std::os::windows::prelude::*;
 #[cfg(windows)]
@@ -17,7 +21,8 @@ mod windows;
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 #[cfg(unix)]
-fn get_driver_property(property_name: String, filter: String) -> Result<()>  {
+fn get_driver_property(_property_name: String, _filter: String) -> Result<()>  {
+    Ok(())
 }
 
 #[cfg(windows)]
@@ -157,10 +162,11 @@ fn unzip(file_path:String) -> Result<()> {
     Ok(())
 }
 
-fn to_wchar(str : &str) -> Vec<u16> {
-    OsStr::new(str).encode_wide().chain(Some(0).into_iter()).collect()
+#[cfg(unix)]
+fn install_driver(driver_inf:String, driver_url: String, _driver_archive: String) {
 }
 
+#[cfg(windows)]
 fn install_driver(driver_inf:String, driver_url: String, _driver_archive: String) {
     let driver_archive = _driver_archive.clone();
     download_driver(driver_url, _driver_archive).unwrap();
@@ -198,22 +204,6 @@ fn install_driver(driver_inf:String, driver_url: String, _driver_archive: String
         &mut a as *mut _);
         println!("{:#}", result);
     }
-}
-
-
-pub fn to_u16s<S: AsRef<OsStr>>(s: S) -> io::Result<Vec<u16>> {
-    fn inner(s: &OsStr) -> io::Result<Vec<u16>> {
-        let mut maybe_result: Vec<u16> = s.encode_wide().collect();
-        if maybe_result.iter().any(|&u| u == 0) {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                "strings passed to WinAPI cannot contain NULs",
-            ));
-        }
-        maybe_result.push(0);
-        Ok(maybe_result)
-    }
-    inner(s.as_ref())
 }
 
 #[cfg(unix)]

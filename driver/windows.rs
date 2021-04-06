@@ -61,3 +61,24 @@ impl Drop for QueryAccessToken {
         }
     }
 }
+
+pub fn to_wchar(str : &str) -> Vec<u16> {
+    OsStr::new(str).encode_wide().chain(Some(0).into_iter()).collect()
+}
+
+
+pub fn to_u16s<S: AsRef<OsStr>>(s: S) -> io::Result<Vec<u16>> {
+    fn inner(s: &OsStr) -> io::Result<Vec<u16>> {
+        let mut maybe_result: Vec<u16> = s.encode_wide().collect();
+        if maybe_result.iter().any(|&u| u == 0) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "strings passed to WinAPI cannot contain NULs",
+            ));
+        }
+        maybe_result.push(0);
+        Ok(maybe_result)
+    }
+    inner(s.as_ref())
+}
+

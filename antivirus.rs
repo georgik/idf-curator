@@ -1,12 +1,14 @@
 use clap::Arg;
 use clap_nested::{Command, Commander, MultiCommand};
+#[cfg(windows)]
 use std::collections::HashMap;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 #[cfg(unix)]
-fn get_antivirus_property(property_name: String) -> Result<()>  {
+fn get_antivirus_property(_property_name: String) -> Result<()>  {
     println!("None");
+    Ok(())
 }
 
 #[cfg(windows)]
