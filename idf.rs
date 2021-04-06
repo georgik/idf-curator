@@ -5,7 +5,9 @@ use std::io::Cursor;
 use std::process;
 use tokio::runtime::Handle;
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
+use std::env;
 
+use crate::config::get_git_path;
 
 fn get_installer(matches: &clap::ArgMatches) -> String {
     if matches.is_present("installer") {
@@ -37,6 +39,69 @@ fn download_installer() -> Result<()> {
 
 }
 
+fn execute_command(command:String, arguments: Vec<String>) -> Result<()>{
+    let argument_string = arguments.clone().into_iter().map(|i| format!("{} ",i.to_string())).collect::<String>();
+    println!("Executing: {} {}", command, argument_string);
+    std::process::Command::new(command)
+                        .args(arguments)
+                        .output()
+                        .expect("failed to execute process");
+    Ok(())
+}
+
+fn reset_repository(repository_path: String) -> Result<()> {
+
+    let idf_path = Path::new(&repository_path);
+    assert!(env::set_current_dir(&idf_path).is_ok());
+    println!("Working directory: {}", idf_path.display());
+
+    let git_path = get_git_path();
+    let mut arguments : Vec<String> = [].to_vec();
+    arguments.push("reset".to_string());
+    arguments.push("--hard".to_string());
+    assert!(execute_command(git_path, arguments).is_ok());
+
+    let mut arguments_submodule : Vec<String> = [].to_vec();
+    arguments_submodule.push("submodule".to_string());
+    arguments_submodule.push("foreach".to_string());
+    arguments_submodule.push("git".to_string());
+    arguments_submodule.push("reset".to_string());
+    arguments_submodule.push("--hard".to_string());
+    assert!(execute_command(get_git_path(), arguments_submodule).is_ok());
+
+    let mut arguments_clean : Vec<String> = [].to_vec();
+    arguments_clean.push("clean".to_string());
+    arguments_clean.push("force".to_string());
+    arguments_clean.push("-d".to_string());
+    assert!(execute_command(get_git_path(), arguments_clean).is_ok());
+
+    let mut arguments_status : Vec<String> = [].to_vec();
+    arguments_status.push("status".to_string());
+    assert!(execute_command(get_git_path(), arguments_status).is_ok());
+
+    Ok(())
+}
+
+fn get_reset_cmd<'a>() -> Command<'a, str> {
+    Command::new("reset")
+        .description("Reset ESP-IDF git repository to initial state and wipe out modified data")
+        .options(|app| {
+            app.arg(
+                Arg::with_name("idf-path")
+                    .short("d")
+                    .long("idf-path")
+                    .help("Path to existing ESP-IDF")
+                    .takes_value(true)
+            )
+        })
+        .runner(|_args, matches| {
+            if matches.value_of("idf-path").is_some() {
+                let dir = matches.value_of("idf-path").unwrap();
+                assert!(reset_repository(dir.to_string()).is_ok());
+            }
+            Ok(())
+        })
+}
 
 pub fn get_install_cmd<'a>() -> Command<'a, str> {
     Command::new("install")
@@ -167,6 +232,7 @@ pub fn get_install_cmd<'a>() -> Command<'a, str> {
 pub fn get_multi_cmd<'a>() -> MultiCommand<'a, str, str> {
     let multi_cmd: MultiCommand<str, str> = Commander::new()
     .add_cmd(get_install_cmd())
+    .add_cmd(get_reset_cmd())
     .into_cmd("idf")
 
     // Optionally specify a description

@@ -36,17 +36,27 @@ fn load_json() -> json::JsonValue {
     return json::parse(&content.to_string()).unwrap();
 }
 
-fn get_property(property_name: String) {
+pub fn get_property(property_name: String) -> String {
     let parsed_json = load_json();
-    let property_path = &parsed_json[property_name].to_string();
-    print_path(property_path);
+    return parsed_json[property_name].to_string();
 }
 
-fn get_property_with_path(property_name: String, idf_path: String) {
+fn print_property(property_name: String) {
+    print_path(&get_property(property_name));
+}
+
+pub fn get_git_path() -> String {
+    get_property("gitPath".to_string())
+}
+
+pub fn get_property_with_path(property_name: String, idf_path: String) -> String {
     let parsed_json = load_json();
     let idf_id = get_idf_id(idf_path);
-    let property_path = &parsed_json["idfInstalled"][idf_id][property_name].to_string();
-    print_path(property_path);
+    return parsed_json["idfInstalled"][idf_id][property_name].to_string();
+}
+
+fn print_property_with_path(property_name: String, idf_path: String) {
+    print_path(&get_property_with_path(property_name, idf_path));
 }
 
 fn add_idf_config(idf_path: String, version: String, python_path: String) {
@@ -88,9 +98,9 @@ pub fn get_cmd<'a>() -> Command<'a, str> {
 
                 if matches.is_present("idf-path") {
                     let idf_path = matches.value_of("idf-path").unwrap().to_string();
-                    get_property_with_path(property_name, idf_path);
+                    print_property_with_path(property_name, idf_path);
                 } else {
-                    get_property(property_name);
+                    print_property(property_name);
                 }
             } else {
                 let content = load_json();
