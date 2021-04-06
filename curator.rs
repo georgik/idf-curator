@@ -1,7 +1,6 @@
 extern crate json;
 extern crate clap;
 
-use clap::{Arg, };
 use clap_nested::{Commander};
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
@@ -15,15 +14,10 @@ async fn app() -> Result<()> {
 
     Commander::new()
     .options(|app| {
-        app.arg(
-            Arg::with_name("environment")
-                // .short("e")
-                .long("env")
-                // .global(true)
-                .takes_value(true)
-                .value_name("STRING")
-                .help("Sets an environment value, defaults to \"dev\""),
-        )
+        app.version("0.0.13")
+        .name("IDF Curator")
+        .author("Espressif Systems - https://www.espressif.com")
+        .about("Tool for maintaining ESP-IDF environment on computer.")
     })
     .args(|_args, matches| matches.value_of("environment").unwrap_or("dev"))
     .add_cmd(antivirus::get_multi_cmd())
