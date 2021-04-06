@@ -3,20 +3,28 @@ use clap::Arg;
 use clap_nested::{Command, Commander, MultiCommand};
 use std::path::Path;
 use std::io::Cursor;
-use wmi::*;
 use std::collections::HashMap;
-use wmi::Variant;
 use tokio::runtime::Handle;
 use std::fs;
 use std::io;
 use std::ffi::OsStr;
+
+#[cfg(windows)]
 use std::os::windows::prelude::*;
+#[cfg(windows)]
 mod windows;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
-
+#[cfg(unix)]
 fn get_driver_property(property_name: String, filter: String) -> Result<()>  {
+}
+
+#[cfg(windows)]
+fn get_driver_property(property_name: String, filter: String) -> Result<()>  {
+    use wmi::*;
+    use wmi::Variant;
+
     let wmi_con = WMIConnection::with_namespace_path("ROOT\\CIMV2", COMLibrary::new()?.into())?;
     let query = format!("SELECT {} FROM Win32_PnPEntity WHERE {}", property_name, filter);
     // println!("Query: {}", query);
@@ -208,7 +216,13 @@ pub fn to_u16s<S: AsRef<OsStr>>(s: S) -> io::Result<Vec<u16>> {
     inner(s.as_ref())
 }
 
-fn get_runner(_args:&str, _matches:&clap::ArgMatches<'_>)  -> std::result::Result<(), clap::Error> {
+#[cfg(unix)]
+fn get_install_runner(_args:&str, _matches:&clap::ArgMatches<'_>)  -> std::result::Result<(), clap::Error> {
+    Ok(())
+}
+
+#[cfg(windows)]
+fn get_install_runner(_args:&str, _matches:&clap::ArgMatches<'_>)  -> std::result::Result<(), clap::Error> {
     if windows::is_app_elevated() {
         if _matches.is_present("silabs") {
             install_driver("tmp/silabser.inf".to_string(),
@@ -279,7 +293,7 @@ pub fn get_install_cmd<'a>() -> Command<'a, str> {
                     .takes_value(false)
                     .help("display diagnostic log after installation"))
         })
-        .runner(|_args,matches|get_runner(_args, matches)
+        .runner(|_args,matches|get_install_runner(_args, matches)
         )
 }
 

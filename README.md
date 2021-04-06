@@ -20,6 +20,7 @@ curator config rm id
 curator idf install
 curator idf install --idf-version "master" --installer "G:\idf-installer\build\esp-idf-tools-setup-online-unsigned.exe"
 curator idf uninstall
+curator idf reset --path "G:\esp-idf"
 ```
 
 ### Working with Antivirus

@@ -1,15 +1,19 @@
 use clap::Arg;
 use clap_nested::{Command, Commander, MultiCommand};
-
-use wmi::*;
 use std::collections::HashMap;
-use wmi::Variant;
-
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
-
+#[cfg(unix)]
 fn get_antivirus_property(property_name: String) -> Result<()>  {
+    println!("None");
+}
+
+#[cfg(windows)]
+fn get_antivirus_property(property_name: String) -> Result<()>  {
+    use wmi::*;
+    use wmi::Variant;
+
     let wmi_con = WMIConnection::with_namespace_path("ROOT\\SecurityCenter2", COMLibrary::new()?.into())?;
     let results: Vec<HashMap<String, Variant>> = wmi_con.raw_query("SELECT * FROM AntiVirusProduct").unwrap();
     for antivirus_product in results {

@@ -1,6 +1,6 @@
 [package]
 name = "curator"
-version = "0.1.0"
+version = "0.0.15"
 authors = ["Juraj Michalek <juraj.michalek@gmail.com>"]
 edition = "2018"
 
