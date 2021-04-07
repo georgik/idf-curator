@@ -9,6 +9,11 @@ use winapi::um::winnt::TOKEN_QUERY;
 use winapi::um::winnt::TokenElevation;
 use std::ptr::null_mut;
 
+use std::ffi::OsStr;
+use std::os::windows::prelude::*;
+use std::io;
+
+
 /// Based on: https://users.rust-lang.org/t/how-do-i-determine-if-i-have-admin-rights-on-windows/35710/8
 /// Returns true if the current process has admin rights, otherwise false.
 pub fn is_app_elevated() -> bool {
