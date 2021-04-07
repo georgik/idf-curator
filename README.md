@@ -1,6 +1,15 @@
 # IDF Curator
 
 Tool for maintaining ESP-IDF envrionment.
+
+## Quick start
+
+Install serial drivers for ESP boards on Windows. Execute following command in PowerShell:
+
+```
+Invoke-WebRequest 'https://dl.espressif.com/dl/idf-curator/curator.exe' -OutFile .\curator.exe; .\curator.exe driver install --ftdi --silabs
+```
+
 # Commands
 
 ## Working with configuration
