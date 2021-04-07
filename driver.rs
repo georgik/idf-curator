@@ -8,15 +8,14 @@ use std::collections::HashMap;
 use tokio::runtime::Handle;
 use std::fs;
 use std::io;
-#[cfg(windows)]
-use std::ffi::OsStr;
+
 
 #[cfg(windows)]
 use core::ptr::null_mut;
 #[cfg(windows)]
-use std::os::windows::prelude::*;
-#[cfg(windows)]
 mod windows;
+#[cfg(windows)]
+use windows::to_wchar;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
@@ -229,19 +228,19 @@ fn get_install_runner(_args:&str, _matches:&clap::ArgMatches<'_>)  -> std::resul
         // Based on https://github.com/rust-lang/rustup/pull/1117/files
         println!("Installation requires elevated privileges.");
         println!("Requesting elevation.");
-        let operation = to_u16s(r"runas")?.as_ptr();
         let current_exe = std::env::current_exe().unwrap().display().to_string();
-        let path = to_u16s(&current_exe)?.as_ptr();
         let parameters_string = r"driver install --ftdi --silabs";
-        let parameters = to_u16s(&parameters_string)?.as_ptr();
-        println!("Executing: {} {}", current_exe, parameters_string);
+        let operation = to_wchar("runas");
+        let path = to_wchar(&current_exe);
+        let parameters = to_wchar(parameters_string);
+        let sw_showminnoactive = 7;
+
         let result = unsafe {
             // https://docs.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shellexecutew
-            let sw_showminnoactive = 7;
             winapi::um::shellapi::ShellExecuteW(null_mut(),
-                          operation,
-                          path,
-                          parameters,
+                          operation.as_ptr(),
+                          path.as_ptr(),
+                          parameters.as_ptr(),
                           null_mut(),
                           sw_showminnoactive)
         };
