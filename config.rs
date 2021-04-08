@@ -25,14 +25,14 @@ fn get_json_path() -> String {
 }
 
 fn get_idf_id(idf_path: String) -> String {
-    let idf_path_with_slash = format!("{}", idf_path.replace("\\","/"));
+    let idf_path_with_slash = format!("{}", idf_path.replace("\\", "/"));
     let digest = md5::compute(idf_path_with_slash);
     return format!("esp-idf-{:x}", digest);
 }
 
 fn load_json() -> json::JsonValue {
     let content = fs::read_to_string(get_json_path())
-    .expect("Failure");
+        .expect("Failure");
     return json::parse(&content.to_string()).unwrap();
 }
 
@@ -61,7 +61,7 @@ fn print_property_with_path(property_name: String, idf_path: String) {
 
 fn add_idf_config(idf_path: String, version: String, python_path: String) {
     let idf_id = get_idf_id(idf_path.clone());
-    let _data = json::object!{
+    let _data = json::object! {
         version: version,
         python: python_path,
         path: idf_path
@@ -84,13 +84,13 @@ pub fn get_cmd<'a>() -> Command<'a, str> {
                     .help("Filter result for property name")
                     .takes_value(true)
             )
-            .arg(
-                Arg::with_name("idf-path")
-                    .short("i")
-                    .long("idf-path")
-                    .help("Path to ESP-IDF")
-                    .takes_value(true),
-            )
+                .arg(
+                    Arg::with_name("idf-path")
+                        .short("i")
+                        .long("idf-path")
+                        .help("Path to ESP-IDF")
+                        .takes_value(true),
+                )
         })
         .runner(|_args, matches| {
             if matches.is_present("property") {
@@ -111,7 +111,6 @@ pub fn get_cmd<'a>() -> Command<'a, str> {
 }
 
 
-
 pub fn get_add_cmd<'a>() -> Command<'a, str> {
     Command::new("add")
         .description("Add configuration")
@@ -123,34 +122,34 @@ pub fn get_add_cmd<'a>() -> Command<'a, str> {
                     .help("Full path to Python binary")
                     .takes_value(true)
             )
-            .arg(
-                Arg::with_name("idf-path")
-                    .short("i")
-                    .long("idf-path")
-                    .help("Path to ESP-IDF")
-                    .takes_value(true),
-            )
-            .arg(
-                Arg::with_name("idf-version")
-                    .short("x")
-                    .long("idf-version")
-                    .help("ESP-IDF version")
-                    .takes_value(true)
-            )
-            .arg(
-                Arg::with_name("git")
-                    .short("g")
-                    .long("git")
-                    .help("Full path to Git binary")
-                    .takes_value(true)
-            )
-            .arg(
-                Arg::with_name("name")
-                    .short("n")
-                    .long("name")
-                    .help("Custom name of ESP-IDF installation")
-                    .takes_value(true)
-            )
+                .arg(
+                    Arg::with_name("idf-path")
+                        .short("i")
+                        .long("idf-path")
+                        .help("Path to ESP-IDF")
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("idf-version")
+                        .short("x")
+                        .long("idf-version")
+                        .help("ESP-IDF version")
+                        .takes_value(true)
+                )
+                .arg(
+                    Arg::with_name("git")
+                        .short("g")
+                        .long("git")
+                        .help("Full path to Git binary")
+                        .takes_value(true)
+                )
+                .arg(
+                    Arg::with_name("name")
+                        .short("n")
+                        .long("name")
+                        .help("Custom name of ESP-IDF installation")
+                        .takes_value(true)
+                )
         })
         .runner(|_args, matches| {
             let python_path = matches.value_of("python").unwrap().to_string();
@@ -164,12 +163,12 @@ pub fn get_add_cmd<'a>() -> Command<'a, str> {
 
 pub fn get_multi_cmd<'a>() -> MultiCommand<'a, str, str> {
     let multi_cmd: MultiCommand<str, str> = Commander::new()
-    .add_cmd(get_cmd())
-    .add_cmd(get_add_cmd())
-    .into_cmd("config")
+        .add_cmd(get_cmd())
+        .add_cmd(get_add_cmd())
+        .into_cmd("config")
 
-    // Optionally specify a description
-    .description("Maintain configuration of ESP-IDF installations.");
+        // Optionally specify a description
+        .description("Maintain configuration of ESP-IDF installations.");
 
     return multi_cmd;
 }

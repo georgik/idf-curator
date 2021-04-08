@@ -11,24 +11,23 @@ mod driver;
 mod idf;
 
 async fn app() -> Result<()> {
-
     Commander::new()
-    .options(|app| {
-        app.version("0.0.13")
-        .name("IDF Curator")
-        .author("Espressif Systems - https://www.espressif.com")
-        .about("Tool for maintaining ESP-IDF environment on computer.")
-    })
-    .args(|_args, matches| matches.value_of("environment").unwrap_or("dev"))
-    .add_cmd(antivirus::get_multi_cmd())
-    .add_cmd(config::get_multi_cmd())
-    .add_cmd(driver::get_multi_cmd())
-    .add_cmd(idf::get_multi_cmd())
-    .no_cmd(|_args, _matches| {
-        println!("No subcommand matched");
-        Ok(())
-    })
-    .run();
+        .options(|app| {
+            app.version("0.0.13")
+                .name("IDF Curator")
+                .author("Espressif Systems - https://www.espressif.com")
+                .about("Tool for maintaining ESP-IDF environment on computer.")
+        })
+        .args(|_args, matches| matches.value_of("environment").unwrap_or("dev"))
+        .add_cmd(antivirus::get_multi_cmd())
+        .add_cmd(config::get_multi_cmd())
+        .add_cmd(driver::get_multi_cmd())
+        .add_cmd(idf::get_multi_cmd())
+        .no_cmd(|_args, _matches| {
+            println!("No subcommand matched");
+            Ok(())
+        })
+        .run();
     return Ok(());
 }
 

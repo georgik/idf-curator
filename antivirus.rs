@@ -6,13 +6,13 @@ use std::collections::HashMap;
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 #[cfg(unix)]
-fn get_antivirus_property(_property_name: String) -> Result<()>  {
+fn get_antivirus_property(_property_name: String) -> Result<()> {
     println!("None");
     Ok(())
 }
 
 #[cfg(windows)]
-fn get_antivirus_property(property_name: String) -> Result<()>  {
+fn get_antivirus_property(property_name: String) -> Result<()> {
     use wmi::*;
     use wmi::Variant;
 
@@ -22,9 +22,8 @@ fn get_antivirus_property(property_name: String) -> Result<()>  {
         let property_value = &antivirus_product[&property_name];
 
         if let Variant::String(value) = property_value {
-            print!("{}", value )
+            print!("{}", value)
         }
-
     }
     Ok(())
 }
@@ -42,21 +41,19 @@ pub fn get_cmd<'a>() -> Command<'a, str> {
             )
         })
         .runner(|_args, matches| {
-            let property_name =  matches.value_of("property").unwrap().to_string();
+            let property_name = matches.value_of("property").unwrap().to_string();
             get_antivirus_property(property_name).unwrap();
             Ok(())
         })
-
-
 }
 
 pub fn get_multi_cmd<'a>() -> MultiCommand<'a, str, str> {
     let multi_cmd: MultiCommand<str, str> = Commander::new()
-    .add_cmd(get_cmd())
-    .into_cmd("antivirus")
+        .add_cmd(get_cmd())
+        .into_cmd("antivirus")
 
-    // Optionally specify a description
-    .description("Detection of Antivirus and handling exception registration.");
+        // Optionally specify a description
+        .description("Detection of Antivirus and handling exception registration.");
 
     return multi_cmd;
 }

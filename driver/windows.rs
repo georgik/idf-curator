@@ -18,6 +18,7 @@ use std::iter::once;
 pub fn is_app_elevated() -> bool {
     _is_app_elevated().unwrap_or(false)
 }
+
 /// On success returns a bool indicating if the current process has admin rights.
 /// Otherwise returns an OS error.
 ///
@@ -30,12 +31,13 @@ pub fn _is_app_elevated() -> Result<bool, Error> {
 
 /// A safe wrapper around querying Windows access tokens.
 pub struct QueryAccessToken(HANDLE);
+
 impl QueryAccessToken {
     pub fn from_current_process() -> Result<Self, Error> {
         unsafe {
             let mut handle: HANDLE = null_mut();
             if OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut handle) != 0 {
-                Ok ( Self(handle) )
+                Ok(Self(handle))
             } else {
                 Err(Error::last_os_error())
             }
@@ -50,7 +52,7 @@ impl QueryAccessToken {
             let size = std::mem::size_of::<TOKEN_ELEVATION>() as u32;
             let mut ret_size = size;
             // The weird looking repetition of `as *mut _` is casting the reference to a c_void pointer.
-            if GetTokenInformation(self.0, TokenElevation, &mut elevation as *mut _ as *mut _, size, &mut ret_size ) != 0 {
+            if GetTokenInformation(self.0, TokenElevation, &mut elevation as *mut _ as *mut _, size, &mut ret_size) != 0 {
                 Ok(elevation.TokenIsElevated != 0)
             } else {
                 Err(Error::last_os_error())
@@ -58,6 +60,7 @@ impl QueryAccessToken {
         }
     }
 }
+
 impl Drop for QueryAccessToken {
     fn drop(&mut self) {
         if !self.0.is_null() {
@@ -66,7 +69,7 @@ impl Drop for QueryAccessToken {
     }
 }
 
-pub fn to_wchar(str : &str) -> Vec<u16> {
+pub fn to_wchar(str: &str) -> Vec<u16> {
     // OsStr::new(str).encode_wide().chain(Some(0).into_iter()).collect()
     OsStr::new(str).encode_wide().chain(once(0)).collect()
 }
