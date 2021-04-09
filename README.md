@@ -1,6 +1,6 @@
 # IDF Curator
 
-Tool for maintaining ESP-IDF envrionment.
+Tool for maintaining ESP-IDF environment.
 
 ## Quick start
 
@@ -35,6 +35,7 @@ curator idf reset --path "G:\esp-idf"
 ### Working with Antivirus
 
 ```
+curator antivirus get
 curator antivirus get --property displayName
 curator antivirus register --path "C:\....exe"
 curator antivirus unregister --path "C:\....exe"

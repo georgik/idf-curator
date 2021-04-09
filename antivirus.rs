@@ -17,12 +17,18 @@ fn get_antivirus_property(property_name: String) -> Result<()> {
     use wmi::Variant;
 
     let wmi_con = WMIConnection::with_namespace_path("ROOT\\SecurityCenter2", COMLibrary::new()?.into())?;
-    let results: Vec<HashMap<String, Variant>> = wmi_con.raw_query("SELECT * FROM AntiVirusProduct").unwrap();
+    let query = format!("SELECT {} FROM AntiVirusProduct", property_name);
+    let results: Vec<HashMap<String, Variant>> = wmi_con.raw_query(query).unwrap();
     for antivirus_product in results {
-        let property_value = &antivirus_product[&property_name];
+        match property_name == "*" {
+            true => println!("{:#?}", antivirus_product),
+            _ => {
+                let property_value = &antivirus_product[&property_name];
 
-        if let Variant::String(value) = property_value {
-            print!("{}", value)
+                if let Variant::String(value) = property_value {
+                    print!("{}", value)
+                }
+            }
         }
     }
     Ok(())
@@ -37,7 +43,8 @@ pub fn get_cmd<'a>() -> Command<'a, str> {
                     .short("p")
                     .long("property")
                     .help("Filter result for property name")
-                    .takes_value(true),
+                    .takes_value(true)
+                    .default_value("*"),
             )
         })
         .runner(|_args, matches| {
