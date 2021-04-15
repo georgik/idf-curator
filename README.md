@@ -1,5 +1,11 @@
 # IDF Curator
 
+## Deprecated - project moved
+
+Project moved to: https://github.com/espressif/idf-env
+
+
+
 Tool for maintaining ESP-IDF environment.
 
 ## Quick start
